@@ -1,5 +1,6 @@
 var path = require("path");
 
+/** @type {import("../../../../").Configuration} */
 module.exports = {
 	mode: "development",
 	entry: "./test",
@@ -8,7 +9,7 @@ module.exports = {
 		"../../../js/config/records/stable-sort/records.json"
 	),
 	optimization: {
-		namedChunks: false
+		chunkIds: "size"
 	},
 	target: "node",
 	node: {

@@ -38,7 +38,9 @@ it("should load a module with loader applied", function() {
 
 it("should give modules the correct ids", function() {
 	expect(
-		Object.keys(__webpack_modules__).filter(m => !m.startsWith("../.."))
+		Object.keys(__webpack_modules__)
+			.filter(m => !m.startsWith("../.."))
+			.sort()
 	).toEqual([
 		"../0-create-dll/a.js",
 		"../0-create-dll/b.js",

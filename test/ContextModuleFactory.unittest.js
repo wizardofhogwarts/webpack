@@ -1,7 +1,6 @@
-/* globals describe, it, beforeEach */
 "use strict";
 
-const MemoryFs = require("memory-fs");
+const { createFsFromVolume, Volume } = require("memfs");
 const ContextModuleFactory = require("../lib/ContextModuleFactory");
 
 describe("ContextModuleFactory", () => {
@@ -9,7 +8,7 @@ describe("ContextModuleFactory", () => {
 		let factory, memfs;
 		beforeEach(() => {
 			factory = new ContextModuleFactory([]);
-			memfs = new MemoryFs();
+			memfs = createFsFromVolume(new Volume());
 		});
 		it("should not report an error when ENOENT errors happen", done => {
 			memfs.readdir = (dir, callback) => {

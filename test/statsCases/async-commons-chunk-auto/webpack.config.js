@@ -9,6 +9,7 @@ const stats = {
 	entrypoints: true,
 	modules: false
 };
+/** @type {import("../../../").Configuration[]} */
 module.exports = [
 	{
 		name: "disabled",
@@ -92,8 +93,8 @@ module.exports = [
 				chunks: "all",
 				cacheGroups: {
 					libs: module => {
-						if (!module.nameForCondition) return;
 						const name = module.nameForCondition();
+						if (!name) return;
 						const match = /[\\/](xyz|x)\.js/.exec(name);
 						if (match)
 							return {

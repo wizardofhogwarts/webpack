@@ -1,17 +1,15 @@
 "use strict";
 
-/* globals describe expect it */
 const path = require("path");
-const fs = require("fs");
+const fs = require("graceful-fs");
 const vm = require("vm");
-const mkdirp = require("mkdirp");
 const rimraf = require("rimraf");
 const checkArrayExpectation = require("./checkArrayExpectation");
 const createLazyTestEnv = require("./helpers/createLazyTestEnv");
+const deprecationTracking = require("./helpers/deprecationTracking");
 const FakeDocument = require("./helpers/FakeDocument");
 
-const Stats = require("../lib/Stats");
-const webpack = require("../lib/webpack");
+const webpack = require("..");
 const prepareOptions = require("./helpers/prepareOptions");
 
 describe("ConfigTestCases", () => {
@@ -33,7 +31,9 @@ describe("ConfigTestCases", () => {
 					const testDirectory = path.join(casesPath, cat, testName);
 					const filterPath = path.join(testDirectory, "test.filter.js");
 					if (fs.existsSync(filterPath) && !require(filterPath)()) {
-						describe.skip(testName, () => it("filtered"));
+						describe.skip(testName, () => {
+							it("filtered", () => {});
+						});
 						return false;
 					}
 					return true;
@@ -43,7 +43,7 @@ describe("ConfigTestCases", () => {
 	categories.forEach(category => {
 		describe(category.name, () => {
 			category.tests.forEach(testName => {
-				describe(testName, function() {
+				describe(testName, function () {
 					const testDirectory = path.join(casesPath, category.name, testName);
 					const outputDirectory = path.join(
 						__dirname,
@@ -61,7 +61,7 @@ describe("ConfigTestCases", () => {
 									resolve();
 								};
 								rimraf.sync(outputDirectory);
-								mkdirp.sync(outputDirectory);
+								fs.mkdirSync(outputDirectory, { recursive: true });
 								const options = prepareOptions(
 									require(path.join(testDirectory, "webpack.config.js")),
 									{ testPath: outputDirectory }
@@ -84,7 +84,7 @@ describe("ConfigTestCases", () => {
 										options.output.filename = "bundle" + idx + ".js";
 								});
 								let testConfig = {
-									findBundle: function(i, options) {
+									findBundle: function (i, options) {
 										const ext = path.extname(options.output.filename);
 										if (
 											fs.existsSync(
@@ -107,10 +107,16 @@ describe("ConfigTestCases", () => {
 								}
 								if (testConfig.timeout) setDefaultTimeout(testConfig.timeout);
 
+								const deprecationTracker = deprecationTracking.start();
 								webpack(options, (err, stats) => {
 									if (err) {
 										const fakeStats = {
-											errors: [err.stack]
+											errors: [
+												{
+													message: err.message,
+													stack: err.stack
+												}
+											]
 										};
 										if (
 											checkArrayExpectation(
@@ -125,9 +131,11 @@ describe("ConfigTestCases", () => {
 										// Wait for uncaught errors to occur
 										return setTimeout(done, 200);
 									}
-									const statOptions = Stats.presetToOptions("verbose");
-									statOptions.colors = false;
-									mkdirp.sync(outputDirectory);
+									const statOptions = {
+										preset: "verbose",
+										colors: false
+									};
+									fs.mkdirSync(outputDirectory, { recursive: true });
 									fs.writeFileSync(
 										path.join(outputDirectory, "stats.txt"),
 										stats.toString(statOptions),
@@ -136,6 +144,11 @@ describe("ConfigTestCases", () => {
 									const jsonStats = stats.toJson({
 										errorDetails: true
 									});
+									fs.writeFileSync(
+										path.join(outputDirectory, "stats.json"),
+										JSON.stringify(jsonStats, null, 2),
+										"utf-8"
+									);
 									if (
 										checkArrayExpectation(
 											testDirectory,
@@ -156,6 +169,17 @@ describe("ConfigTestCases", () => {
 										)
 									)
 										return;
+									const deprecations = deprecationTracker();
+									if (
+										checkArrayExpectation(
+											testDirectory,
+											{ deprecations },
+											"deprecation",
+											"Deprecation",
+											done
+										)
+									)
+										return;
 
 									const globalContext = {
 										console: console,
@@ -172,18 +196,17 @@ describe("ConfigTestCases", () => {
 										}
 									};
 
-									function _require(currentDirectory, module) {
+									function _require(currentDirectory, options, module) {
 										if (Array.isArray(module) || /^\.\.?\//.test(module)) {
 											let content;
 											let p;
 											if (Array.isArray(module)) {
-												p = path.join(currentDirectory, module[0]);
-												content = module
+												p = path.join(currentDirectory, ".array-require.js");
+												content = `module.exports = (${module
 													.map(arg => {
-														p = path.join(currentDirectory, arg);
-														return fs.readFileSync(p, "utf-8");
+														return `require(${JSON.stringify(`./${arg}`)})`;
 													})
-													.join("\n");
+													.join(", ")});`;
 											} else {
 												p = path.join(currentDirectory, module);
 												content = fs.readFileSync(p, "utf-8");
@@ -193,8 +216,12 @@ describe("ConfigTestCases", () => {
 											};
 											let runInNewContext = false;
 											const moduleScope = {
-												require: _require.bind(null, path.dirname(p)),
-												importScripts: _require.bind(null, path.dirname(p)),
+												require: _require.bind(null, path.dirname(p), options),
+												importScripts: _require.bind(
+													null,
+													path.dirname(p),
+													options
+												),
 												module: m,
 												exports: m.exports,
 												__dirname: path.dirname(p),
@@ -205,6 +232,7 @@ describe("ConfigTestCases", () => {
 												expect,
 												jest,
 												_globalAssign: { expect },
+												__STATS__: jsonStats,
 												nsObj: m => {
 													Object.defineProperty(m, Symbol.toStringTag, {
 														value: "Module"
@@ -243,11 +271,14 @@ describe("ConfigTestCases", () => {
 
 									if (testConfig.noTests) return process.nextTick(done);
 									if (testConfig.beforeExecute) testConfig.beforeExecute();
+									const results = [];
 									for (let i = 0; i < optionsArr.length; i++) {
 										const bundlePath = testConfig.findBundle(i, optionsArr[i]);
 										if (bundlePath) {
 											filesCount++;
-											_require(outputDirectory, bundlePath);
+											results.push(
+												_require(outputDirectory, optionsArr[i], bundlePath)
+											);
 										}
 									}
 									// give a free pass to compilation that generated an error
@@ -260,10 +291,17 @@ describe("ConfigTestCases", () => {
 												"Should have found at least one bundle file per webpack config"
 											)
 										);
-									if (testConfig.afterExecute) testConfig.afterExecute();
-									if (getNumberOfTests() < filesCount)
-										return done(new Error("No tests exported by test case"));
-									done();
+									Promise.all(results)
+										.then(() => {
+											if (testConfig.afterExecute) testConfig.afterExecute();
+											if (getNumberOfTests() < filesCount) {
+												return done(
+													new Error("No tests exported by test case")
+												);
+											}
+											done();
+										})
+										.catch(done);
 								});
 							})
 					);

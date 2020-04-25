@@ -1,4 +1,5 @@
 const TerserPlugin = require("terser-webpack-plugin");
+/** @type {import("../../../../").Configuration} */
 module.exports = {
 	node: {
 		__dirname: false,
@@ -20,12 +21,12 @@ module.exports = {
 			new TerserPlugin({
 				cache: false,
 				parallel: false,
-				exclude: ["vendors.js", "extract.js"]
+				extractComments: false,
+				exclude: ["vendors.js", "compress.js", "extract.js"]
 			}),
 			new TerserPlugin({
 				cache: false,
 				parallel: false,
-				extractComments: true,
 				include: ["extract.js"]
 			}),
 			new TerserPlugin({
@@ -36,6 +37,7 @@ module.exports = {
 						passes: 2
 					}
 				},
+				extractComments: false,
 				include: ["compress.js"]
 			})
 		]

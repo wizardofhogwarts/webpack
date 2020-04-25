@@ -1,3 +1,4 @@
+/** @type {import("../../../../").Configuration} */
 module.exports = {
 	entry: "./index",
 	module: {
@@ -5,8 +6,12 @@ module.exports = {
 			{
 				test: /\.wat$/,
 				loader: "wast-loader",
-				type: "webassembly/experimental"
+				type: "webassembly/sync"
 			}
 		]
+	},
+	experiments: {
+		syncWebAssembly: true,
+		importAwait: true
 	}
 };

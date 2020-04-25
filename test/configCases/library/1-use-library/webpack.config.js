@@ -1,5 +1,6 @@
 var webpack = require("../../../../");
 var path = require("path");
+/** @type {import("../../../../").Configuration[]} */
 module.exports = [
 	{
 		resolve: {
@@ -32,7 +33,7 @@ module.exports = [
 		]
 	},
 	{
-		entry: "./global-test.js",
+		entry: "./this-test.js",
 		resolve: {
 			alias: {
 				library: path.resolve(
@@ -44,6 +45,22 @@ module.exports = [
 		plugins: [
 			new webpack.DefinePlugin({
 				NAME: JSON.stringify("this")
+			})
+		]
+	},
+	{
+		entry: "./var-test.js",
+		resolve: {
+			alias: {
+				library: path.resolve(
+					__dirname,
+					"../../../js/config/library/0-create-library/var.js"
+				)
+			}
+		},
+		plugins: [
+			new webpack.DefinePlugin({
+				NAME: JSON.stringify("var")
 			})
 		]
 	},
@@ -65,6 +82,22 @@ module.exports = [
 		]
 	},
 	{
+		resolve: {
+			alias: {
+				library: path.resolve(
+					__dirname,
+					"../../../js/config/library/0-create-library/commonjs2-split-chunks/"
+				),
+				external: path.resolve(__dirname, "node_modules/external.js")
+			}
+		},
+		plugins: [
+			new webpack.DefinePlugin({
+				NAME: JSON.stringify("commonjs2 with splitChunks")
+			})
+		]
+	},
+	{
 		entry: "./default-test.js",
 		resolve: {
 			alias: {
@@ -77,6 +110,51 @@ module.exports = [
 		plugins: [
 			new webpack.DefinePlugin({
 				NAME: JSON.stringify("default")
+			})
+		]
+	},
+	{
+		resolve: {
+			alias: {
+				library: path.resolve(
+					__dirname,
+					"../../../js/config/library/0-create-library/entryA.js"
+				)
+			}
+		},
+		plugins: [
+			new webpack.DefinePlugin({
+				NAME: JSON.stringify("entryA")
+			})
+		]
+	},
+	{
+		resolve: {
+			alias: {
+				library: path.resolve(
+					__dirname,
+					"../../../js/config/library/0-create-library/entryB.js"
+				)
+			}
+		},
+		plugins: [
+			new webpack.DefinePlugin({
+				NAME: JSON.stringify("entryB")
+			})
+		]
+	},
+	{
+		resolve: {
+			alias: {
+				library: path.resolve(
+					__dirname,
+					"../../../js/config/library/0-create-library/entryC.js"
+				)
+			}
+		},
+		plugins: [
+			new webpack.DefinePlugin({
+				NAME: JSON.stringify("entryC")
 			})
 		]
 	}
